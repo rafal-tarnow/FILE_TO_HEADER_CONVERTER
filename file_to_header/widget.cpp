@@ -73,9 +73,9 @@ void Widget::on_pushButton_convert_clicked()
 
     myfile << "#pragma once\n\n";
     myfile << "const static int size = "<<size << ";\n\n\n\n\n\n\n";
-    myfile << "const char tablica[size] = {\n\t";
+    myfile << "unsigned char tablica[size] = {\n\t";
 
-    for(int i = 0; i < buffer.size(); i++)
+    for(unsigned int i = 0; i < buffer.size(); i++)
     {
         myfile << "0x";
 
@@ -91,7 +91,7 @@ void Widget::on_pushButton_convert_clicked()
             myfile << "\n\t";
         }
     }
-    myfile << "\n}\n";
+    myfile << "\n};\n";
 
     myfile.close();
     ui->console->appendPlainText("      Close output file");
