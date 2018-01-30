@@ -93,11 +93,12 @@ void Widget::generateHeaderFile(string headerFileDir, string headerFileName, std
     }
 
     //GNERATE FILE
-    header_file << "#pragma once\n\n";
-    header_file << "const static int size = " << buffer.size() << ";\n\n";
     string table_name = remove_extension(headerFileName);
     std::replace( table_name.begin(), table_name.end(), '.', '_');
-    header_file << "unsigned char " << table_name << "[size] = {\n\t";
+
+    header_file << "#pragma once\n\n";
+    header_file << "const static int size_of_" << table_name<< " = " << buffer.size() << ";\n\n";
+    header_file << "unsigned char " << table_name << "[size_of_" << table_name << "] = {\n\t";
 
     for(unsigned int i = 0; i < buffer.size(); i++)
     {
