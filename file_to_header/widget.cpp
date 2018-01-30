@@ -31,70 +31,100 @@ void Widget::on_pushButton_openFile_clicked()
 
 }
 
+uint32_t Widget::loadFileToVector(string fileName, std::vector<char> &buffer)
+{
+    std::ifstream file(fileName, std::ios::binary | std::ios::ate);
+    std::streamsize size = file.tellg();
+    ui->console->appendPlainText("  ->File size = " + QString::number(size));
+    file.seekg(0, std::ios::beg);
+
+    buffer.resize(size);
+    if (file.read(buffer.data(), size))
+    {
+        /* worked! */
+    }
+}
+
 void Widget::on_pushButton_convert_clicked()
 {
-    QString headerFile = QFileDialog::getSaveFileName(this, tr("Save file"), QStandardPaths::writableLocation(QStandardPaths::DesktopLocation), ".h");
+    QString outputFileWithPath = QFileDialog::getSaveFileName(this, tr("Save file"), /*QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/" +*/ fileName + ".hpp", "*.h;*.hpp");
 
-    if((!headerFile.endsWith(".h", Qt::CaseInsensitive)) && (!headerFile.endsWith(".hpp", Qt::CaseInsensitive)))
+    QFileInfo fileInfo(outputFileWithPath);
+
+    QString outputFileName = fileInfo.fileName();
+    QString outputFileDir = fileInfo.dir().path() + "/";
+
+    if((!outputFileName.endsWith(".h", Qt::CaseInsensitive)) && (!outputFileName.endsWith(".hpp", Qt::CaseInsensitive)))
     {
-        headerFile += ".h";
+        outputFileName += ".h";
     }
 
-    ui->console->appendPlainText("Output file:" + headerFile);
+    ui->console->appendPlainText("Output file:" + outputFileName);
 
     ui->console->appendPlainText("START CONVERT:");
     ui->progressBar->setValue(0);
 
 
     ui->console->appendPlainText("  ->Start load input file to memory");
-    std::ifstream file(fileName.toStdString(), std::ios::binary | std::ios::ate);
-    std::streamsize size = file.tellg();
-    ui->console->appendPlainText("  ->File size = " + QString::number(size));
-    file.seekg(0, std::ios::beg);
-
-    std::vector<char> buffer(size);
-    if (file.read(buffer.data(), size))
-    {
-        /* worked! */
-    }
 
 
-    ofstream myfile;
-    myfile.open (headerFile.toStdString());
+    std::vector<char> buffer;
+    uint32_t size = loadFileToVector(fileName.toStdString(), buffer);
 
-    if(myfile.is_open())
-    {
+    generateHeaderFile(outputFileDir.toStdString(), outputFileName.toStdString(), buffer);
+
+    ui->progressBar->setValue(100);
+}
+
+
+
+
+void Widget::generateHeaderFile(string headerFileDir, string headerFileName, std::vector<char> &buffer)
+{
+    string filePath = headerFileDir + headerFileName;
+    //OPEN FILE
+    ofstream header_file;
+    header_file.open (filePath);
+    if(header_file.is_open()){
         ui->console->appendPlainText("  Sucesfull created output file");
-    }else
-    {
+    }else{
         ui->console->appendPlainText("  Error while creating output file");
         return;
     }
 
-    myfile << "#pragma once\n\n";
-    myfile << "const static int size = "<<size << ";\n\n\n\n\n\n\n";
-    myfile << "unsigned char tablica[size] = {\n\t";
+    //GNERATE FILE
+    header_file << "#pragma once\n\n";
+    header_file << "const static int size = " << buffer.size() << ";\n\n";
+    string table_name = remove_extension(headerFileName);
+    std::replace( table_name.begin(), table_name.end(), '.', '_');
+    header_file << "unsigned char " << table_name << "[size] = {\n\t";
 
     for(unsigned int i = 0; i < buffer.size(); i++)
     {
-        myfile << "0x";
+        header_file << "0x";
 
         if((unsigned int)(unsigned char)buffer[i] > 0x0F)
         {
-            myfile << hex << (unsigned int)(unsigned char)buffer[i];
+            header_file << hex << (unsigned int)(unsigned char)buffer[i];
         }else{
-            myfile << "0" <<hex << (unsigned int)(unsigned char)buffer[i];
+            header_file << "0" <<hex << (unsigned int)(unsigned char)buffer[i];
         }
-        myfile << ", ";
+        header_file << ", ";
         if((i % 10) == 9)
         {
-            myfile << "\n\t";
+            header_file << "\n\t";
         }
     }
-    myfile << "\n};\n";
+    header_file << "\n};\n";
 
-    myfile.close();
+    //CLOSE FILE
+    header_file.close();
     ui->console->appendPlainText("      Close output file");
-    ui->progressBar->setValue(100);
+}
 
+
+string Widget::remove_extension(const string& filename) {
+    size_t lastdot = filename.find_last_of(".");
+    if (lastdot == std::string::npos) return filename;
+    return filename.substr(0, lastdot);
 }

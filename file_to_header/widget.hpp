@@ -2,6 +2,9 @@
 #define WIDGET_HPP
 
 #include <QWidget>
+#include <string>
+
+using namespace std;
 
 namespace Ui {
 class Widget;
@@ -21,6 +24,9 @@ private slots:
     void on_pushButton_convert_clicked();
 
 private:
+    uint32_t loadFileToVector(string fileName, std::vector<char> &buffer);
+    void generateHeaderFile(string headerFileDir, string headerFileName, std::vector<char> &buffer);
+    string remove_extension(const string& filename);
     Ui::Widget *ui;
     QString fileName;
 };
