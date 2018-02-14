@@ -13,6 +13,7 @@ Widget::Widget(QWidget *parent) :
     ui(new Ui::Widget)
 {
     ui->setupUi(this);
+    openFileDir = settings.value("OpenFileDir").toString();
 }
 
 Widget::~Widget()
@@ -23,7 +24,10 @@ Widget::~Widget()
 void Widget::on_pushButton_openFile_clicked()
 {
     ui->progressBar->setValue(0);
-    fileName = QFileDialog::getOpenFileName(this, tr("Select file to convert"), QStandardPaths::writableLocation(QStandardPaths::DesktopLocation));
+    fileName = QFileDialog::getOpenFileName(this, tr("Select file to convert"), openFileDir);
+    QFileInfo fileInfo(fileName);
+    openFileDir = fileInfo.dir().absolutePath();
+    settings.setValue("OpenFileDir",openFileDir);
 
     ui->label_file_to_convert->setText(fileName);
 

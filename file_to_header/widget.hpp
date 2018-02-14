@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <string>
+#include <QSettings>
 
 using namespace std;
 
@@ -24,11 +25,13 @@ private slots:
     void on_pushButton_convert_clicked();
 
 private:
+    QSettings settings;
     uint32_t loadFileToVector(string fileName, std::vector<char> &buffer);
     void generateHeaderFile(string headerFileDir, string headerFileName, std::vector<char> &buffer);
     string remove_extension(const string& filename);
     Ui::Widget *ui;
     QString fileName;
+    QString openFileDir;
 };
 
 #endif // WIDGET_HPP
