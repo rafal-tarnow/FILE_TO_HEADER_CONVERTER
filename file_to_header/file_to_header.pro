@@ -8,9 +8,12 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
+
 TARGET = file_to_header
 TEMPLATE = app
 
+LIBS += \
+       -lboost_system\
 
 SOURCES += main.cpp\
         widget.cpp

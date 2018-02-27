@@ -1,11 +1,11 @@
 #include "widget.hpp"
 #include "ui_widget.h"
-#include <QFileDialog>
 #include <QStandardPaths>
 #include <QDebug>
-
 #include <iostream>
 #include <fstream>
+#include <boost/filesystem/path.hpp>
+
 using namespace std;
 
 Widget::Widget(QWidget *parent) :
@@ -13,7 +13,9 @@ Widget::Widget(QWidget *parent) :
     ui(new Ui::Widget)
 {
     ui->setupUi(this);
-    openFileDir = settings.value("OpenFileDir").toString();
+
+    ui->label_inputDir->setText(dirToDir.getInputDirectory());
+    ui->label_outputDir->setText(dirToDir.getOutputDirectory());
 }
 
 Widget::~Widget()
@@ -24,15 +26,10 @@ Widget::~Widget()
 void Widget::on_pushButton_openFile_clicked()
 {
     ui->progressBar->setValue(0);
-    fileName = QFileDialog::getOpenFileName(this, tr("Select file to convert"), openFileDir);
-    QFileInfo fileInfo(fileName);
-    openFileDir = fileInfo.dir().absolutePath();
-    settings.setValue("OpenFileDir",openFileDir);
+    fileToFile.setInputFileFullPath(QFileDialog::getOpenFileName(this, tr("Select file to convert"), fileToFile.inputFileDir));
 
-    ui->label_file_to_convert->setText(fileName);
-
-    ui->console->appendPlainText("Selected File to convert: " + fileName);
-
+    ui->label_file_to_convert->setText(fileToFile.getInputFileName());
+    ui->console->appendPlainText("Selected File to convert: " + fileToFile.getInputFileName());
 }
 
 uint32_t Widget::loadFileToVector(string fileName, std::vector<char> &buffer)
@@ -51,53 +48,67 @@ uint32_t Widget::loadFileToVector(string fileName, std::vector<char> &buffer)
 
 void Widget::on_pushButton_convert_clicked()
 {
-    QString outputFileWithPath = QFileDialog::getSaveFileName(this, tr("Save file"), /*QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/" +*/ fileName + ".hpp", "*.h;*.hpp");
+    QString outputFileWithPath = QFileDialog::getSaveFileName(this, tr("Save file"), /*QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/" +*/ fileToFile.getInputFileName() + ".hpp", "*.h;*.hpp");
 
-    QFileInfo fileInfo(outputFileWithPath);
+    fileToFile.setOutputFileFullPath(outputFileWithPath);
 
-    QString outputFileName = fileInfo.fileName();
-    QString outputFileDir = fileInfo.dir().path() + "/";
-
-    if((!outputFileName.endsWith(".h", Qt::CaseInsensitive)) && (!outputFileName.endsWith(".hpp", Qt::CaseInsensitive)))
-    {
-        outputFileName += ".h";
-    }
-
-    ui->console->appendPlainText("Output file:" + outputFileName);
+    //    if((!outputFileName.endsWith(".h", Qt::CaseInsensitive)) && (!outputFileName.endsWith(".hpp", Qt::CaseInsensitive)))
+    //    {
+    //        outputFileName += ".h";
+    //    }
 
     ui->console->appendPlainText("START CONVERT:");
     ui->progressBar->setValue(0);
 
 
-    ui->console->appendPlainText("  ->Start load input file to memory");
+    fileToFile.print();
 
-
-    std::vector<char> buffer;
-    uint32_t size = loadFileToVector(fileName.toStdString(), buffer);
-
-    generateHeaderFile(outputFileDir.toStdString(), outputFileName.toStdString(), buffer);
+    generateHeaderFile(fileToFile.getInputFileFullPath(), fileToFile.getOutputFileFullPath());
 
     ui->progressBar->setValue(100);
 }
 
 
-
-
-void Widget::generateHeaderFile(string headerFileDir, string headerFileName, std::vector<char> &buffer)
+void checkFileDirectoryExistAndCreate(QString fileFullPath)
 {
-    string filePath = headerFileDir + headerFileName;
+    QFileInfo info(fileFullPath);
+    QString fileDir = info.absoluteDir().absolutePath();
+    qDebug() << " Dir for file " << fileFullPath << " = " << fileDir;
+
+    QDir dir(fileDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+}
+
+void Widget::generateHeaderFile(QString inputFileFullPath, QString outputFileFullPath)
+{
+    //CHECK FILE DIRECTORY EXIST
+
+    checkFileDirectoryExistAndCreate(outputFileFullPath);
+
+
+    //LOAD FILE TO BUFFER
+    std::vector<char> buffer;
+    uint32_t size = loadFileToVector(inputFileFullPath.toStdString(), buffer);
+
+
+    int bytesInRow = ui->spinBox_bytesInRow->value();
     //OPEN FILE
     ofstream header_file;
-    header_file.open (filePath);
+    header_file.open (outputFileFullPath.toStdString());
     if(header_file.is_open()){
-        ui->console->appendPlainText("  Sucesfull created output file");
+        //ui->console->appendPlainText("  Sucesfull created output file" + outputFileFullPath);
     }else{
-        ui->console->appendPlainText("  Error while creating output file");
+        ui->console->appendPlainText("  Error while creating output file" + outputFileFullPath);
         return;
     }
 
+
+    QFileInfo fileInfo(inputFileFullPath);
+    string fileName = fileInfo.fileName().toStdString();
     //GNERATE FILE
-    string table_name = remove_extension(headerFileName);
+    string table_name = remove_extension(fileName);
     std::replace( table_name.begin(), table_name.end(), '.', '_');
 
     header_file << "#pragma once\n\n";
@@ -115,7 +126,7 @@ void Widget::generateHeaderFile(string headerFileDir, string headerFileName, std
             header_file << "0" <<hex << (unsigned int)(unsigned char)buffer[i];
         }
         header_file << ", ";
-        if((i % 10) == 9)
+        if((i % bytesInRow) == bytesInRow-1)
         {
             header_file << "\n\t";
         }
@@ -132,4 +143,39 @@ string Widget::remove_extension(const string& filename) {
     size_t lastdot = filename.find_last_of(".");
     if (lastdot == std::string::npos) return filename;
     return filename.substr(0, lastdot);
+}
+
+void Widget::on_pushButton_inputDir_clicked()
+{
+    QString inputDirPath = QFileDialog::getExistingDirectory();
+    ui->label_inputDir->setText(inputDirPath);
+
+
+    dirToDir.setInputDirectory(inputDirPath);
+    dirToDir.print();
+}
+
+void Widget::on_pushButton_outputDir_clicked()
+{
+    QString outputDirPath = QFileDialog::getExistingDirectory();
+    dirToDir.setOutputDirectory(outputDirPath);
+    dirToDir.getOutputFiles();
+    dirToDir.print();
+
+    ui->label_outputDir->setText(outputDirPath);
+}
+
+void Widget::on_pushButton_convertDir_clicked()
+{
+    QMap<QString,QString> mapaPlikow = dirToDir.getOutputFiles();
+    QMapIterator<QString, QString> i(mapaPlikow);
+    while (i.hasNext())
+    {
+        i.next();
+        qDebug() << "   " << i.key() << " ---convert_to-->> " << i.value();
+        generateHeaderFile(i.key(), i.value());
+    }
+
+
+
 }
